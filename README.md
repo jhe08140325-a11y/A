@@ -100,7 +100,7 @@ th, td { padding: 6px 8px; text-align: left; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, set, remove, get } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 
 // 🔥 Firebase 테스트용 설정
 const firebaseConfig = {
@@ -142,17 +142,22 @@ onValue(ref(db, "courseCounts"), snapshot => {
 });
 
 // Firebase에서 응답 목록 불러오기
-onValue(ref(db, "responses"), snapshot => {
-  tableBody.innerHTML = "";
-  snapshot.forEach(child => {
-    const entry = child.val();
-    const row = tableBody.insertRow();
-    row.insertCell().innerText = entry.name;
-    row.insertCell().innerText = entry.grade;
-    row.insertCell().innerText = entry.element;
-    row.insertCell().innerText = entry.courses.join(", ");
+function loadResponses() {
+  onValue(ref(db, "responses"), snapshot => {
+    tableBody.innerHTML = "";
+    const data = snapshot.val();
+    if (!data) return; // 데이터가 없으면 종료
+    Object.values(data).forEach(entry => {
+      const row = tableBody.insertRow();
+      row.insertCell().innerText = entry.name;
+      row.insertCell().innerText = entry.grade;
+      row.insertCell().innerText = entry.element;
+      row.insertCell().innerText = entry.courses.join(", ");
+    });
   });
-});
+}
+
+loadResponses();
 
 // 과목 남은 정원 표시
 function updateRemaining() {

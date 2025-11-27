@@ -1,4 +1,4 @@
-&<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -102,14 +102,12 @@ th, td { padding: 6px 8px; text-align: left; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
 import { getDatabase, ref, push, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 
-// ------------------------
-// 🔥 Firebase 설정
-// ------------------------
+// 🔥 Firebase 테스트용 설정
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  databaseURL: "YOUR_DB_URL",
-  projectId: "YOUR_PROJECT_ID",
+  apiKey: "TEST_API_KEY",
+  authDomain: "test-project.firebaseapp.com",
+  databaseURL: "https://test-project-default-rtdb.firebaseio.com",
+  projectId: "test-project",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -123,31 +121,23 @@ const resetBtn = document.getElementById("resetBtn");
 
 // 초기 과목별 정원
 const courseCounts = {};
-document.querySelectorAll(".course").forEach(c => {
-  courseCounts[c.value] = 0;
-});
+document.querySelectorAll(".course").forEach(c => courseCounts[c.value] = 0);
 
-// ------------------------------
 // 속성 불일치 선택 방지
-// ------------------------------
 document.querySelectorAll(".course").forEach(c => {
   c.addEventListener("click", function() {
-      const selectedElement = elementSelect.value;
-      if (c.dataset.element !== "공통" && c.dataset.element !== selectedElement) {
-          alert("선택한 과목은 본인의 속성과 맞지 않습니다!");
-          c.checked = false;
-      }
+    const selectedElement = elementSelect.value;
+    if (c.dataset.element !== "공통" && c.dataset.element !== selectedElement) {
+      alert("선택한 과목은 본인의 속성과 맞지 않습니다!");
+      c.checked = false;
+    }
   });
 });
 
-// ------------------------------
 // Firebase에서 정원 정보 불러오기
-// ------------------------------
 onValue(ref(db, "courseCounts"), snapshot => {
   const data = snapshot.val() || {};
-  Object.keys(courseCounts).forEach(c => {
-    courseCounts[c] = data[c] || 0;
-  });
+  Object.keys(courseCounts).forEach(c => courseCounts[c] = data[c] || 0);
   updateRemaining();
 });
 
@@ -164,9 +154,7 @@ onValue(ref(db, "responses"), snapshot => {
   });
 });
 
-// ------------------------------
 // 과목 남은 정원 표시
-// ------------------------------
 function updateRemaining() {
   document.querySelectorAll(".course").forEach(c => {
     const remaining = c.dataset.max - (courseCounts[c.value] || 0);
@@ -174,12 +162,9 @@ function updateRemaining() {
   });
 }
 
-// ------------------------------
 // 제출 → Firebase 저장
-// ------------------------------
 courseForm.addEventListener("submit", e => {
   e.preventDefault();
-
   const name = document.getElementById("name").value;
   const grade = document.getElementById("grade").value;
   const element = elementSelect.value;
@@ -210,9 +195,7 @@ courseForm.addEventListener("submit", e => {
   updateRemaining();
 });
 
-// ------------------------------
 // 관리자용 초기화 버튼
-// ------------------------------
 resetBtn.addEventListener("click", () => {
   if (confirm("모든 기록을 초기화하시겠습니까?")) {
     remove(ref(db, "responses"));

@@ -98,95 +98,37 @@ th, td { padding: 6px 8px; text-align: left; }
 <tbody></tbody>
 </table>
 
-</div>
-
-<!-- 🔥 Firebase 연동 스크립트 -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
-import { getDatabase, ref, push, onValue, set } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-database.js";
 
-// ----------------------------------
-// 🔥 여기에 너의 Firebase 설정 넣기
-// ----------------------------------
+// ------------------------
+// 🔥 Firebase 설정
+// ------------------------
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "YOUR_AUTH_DOMAIN",
-  databaseURL: "YOUR_DATABASE_URL",
-  projectId: "YOUR_PROJECT_ID"
+  databaseURL: "YOUR_DB_URL",
+  projectId: "YOUR_PROJECT_ID",
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const form = document.getElementById("courseForm");
+const courseForm = document.getElementById("courseForm");
 const tableBody = document.getElementById("responsesTable").querySelector("tbody");
-const elementSelect = document.getElementById("element");
 const welcomeDiv = document.getElementById("welcome");
+const elementSelect = document.getElementById("element");
 const resetBtn = document.getElementById("resetBtn");
 
-const adminPassword = "이스텔리아123";
-
+// 초기 과목별 정원
 const courseCounts = {};
-document.querySelectorAll(".course").forEach(c => courseCounts[c.value] = 0);
-
-// ------------------------------
-// 🔥 Firebase 정원 정보 불러오기
-// ------------------------------
-onValue(ref(db, "courseCounts"), (snapshot) => {
-  const data = snapshot.val() || {};
-  Object.keys(courseCounts).forEach(c => {
-    courseCounts[c] = data[c] || 0;
-  });
-  updateRemaining();
+document.querySelectorAll(".course").forEach(c => {
+  courseCounts[c.value] = 0;
 });
 
 // ------------------------------
-// 🔥 Firebase 응답 목록 불러오기
-// ------------------------------
-onValue(ref(db, "responses"), (snapshot) => {
-  tableBody.innerHTML = "";
-  snapshot.forEach(child => {
-    const entry = child.val();
-    const row = tableBody.insertRow();
-    row.insertCell().innerText = entry.name;
-    row.insertCell().innerText = entry.grade;
-    row.insertCell().innerText = entry.element;
-    row.insertCell().innerText = entry.courses.join(", ");
-  });
-});
-
-// ------------------------------
-// 🟡 잔여 인원 업데이트 + 색상 처리
-// ------------------------------
-function updateRemaining() {
-  document.querySelectorAll(".course").forEach(c => {
-      const remaining = c.dataset.max - courseCounts[c.value];
-      const label = c.parentElement;
-
-      label.querySelector(".remaining").innerText = `(잔여: ${remaining}명)`;
-
-      if (remaining <= 0) {
-          label.style.background = "#ff4d4d";
-          label.style.color = "white";
-          label.style.borderRadius = "6px";
-          c.disabled = true;
-
-      } else if (remaining <= 2) {
-          label.style.background = "#ffe066";
-          label.style.color = "black";
-          label.style.borderRadius = "6px";
-          c.disabled = false;
-
-      } else {
-          label.style.background = "transparent";
-          label.style.color = "black";
-          c.disabled = false;
-      }
-  });
-}
-
-// ------------------------------
-// 🚫 속성 불일치 선택 방지
+// 속성 불일치 선택 방지
 // ------------------------------
 document.querySelectorAll(".course").forEach(c => {
   c.addEventListener("click", function() {
@@ -199,72 +141,88 @@ document.querySelectorAll(".course").forEach(c => {
 });
 
 // ------------------------------
-// 📌 제출 → Firebase 저장
+// Firebase에서 정원 정보 불러오기
 // ------------------------------
-form.addEventListener("submit", function(e) {
+onValue(ref(db, "courseCounts"), snapshot => {
+  const data = snapshot.val() || {};
+  Object.keys(courseCounts).forEach(c => {
+    courseCounts[c] = data[c] || 0;
+  });
+  updateRemaining();
+});
+
+// Firebase에서 응답 목록 불러오기
+onValue(ref(db, "responses"), snapshot => {
+  tableBody.innerHTML = "";
+  snapshot.forEach(child => {
+    const entry = child.val();
+    const row = tableBody.insertRow();
+    row.insertCell().innerText = entry.name;
+    row.insertCell().innerText = entry.grade;
+    row.insertCell().innerText = entry.element;
+    row.insertCell().innerText = entry.courses.join(", ");
+  });
+});
+
+// ------------------------------
+// 과목 남은 정원 표시
+// ------------------------------
+function updateRemaining() {
+  document.querySelectorAll(".course").forEach(c => {
+    const remaining = c.dataset.max - (courseCounts[c.value] || 0);
+    c.nextElementSibling.innerText = `남은 정원: ${remaining}`;
+  });
+}
+
+// ------------------------------
+// 제출 → Firebase 저장
+// ------------------------------
+courseForm.addEventListener("submit", e => {
   e.preventDefault();
 
   const name = document.getElementById("name").value;
   const grade = document.getElementById("grade").value;
-  const element = document.getElementById("element").value;
-
+  const element = elementSelect.value;
   const selectedCourses = [];
 
   document.querySelectorAll(".course").forEach(c => {
-      if (c.checked) {
-          const cn = c.value;
-          if (courseCounts[cn] < 6) {
-              selectedCourses.push(cn);
-              courseCounts[cn]++;
-          } else {
-              alert(cn + " 정원이 꽉 찼습니다!");
-              c.checked = false;
-          }
+    if (c.checked) {
+      if (courseCounts[c.value] < c.dataset.max) {
+        selectedCourses.push(c.value);
+        courseCounts[c.value]++;
+      } else {
+        alert(c.value + " 정원이 꽉 찼습니다!");
+        c.checked = false;
       }
+    }
   });
 
   if (selectedCourses.length === 0) {
-      alert("적어도 한 과목은 선택해야 합니다!");
-      return;
+    alert("적어도 한 과목은 선택해야 합니다!");
+    return;
   }
 
-  push(ref(db, "responses"), {
-      name,
-      grade,
-      element,
-      courses: selectedCourses
-  });
-
+  push(ref(db, "responses"), { name, grade, element, courses: selectedCourses });
   set(ref(db, "courseCounts"), courseCounts);
 
-  form.reset();
+  courseForm.reset();
   welcomeDiv.innerText = "이스텔리아 아카데미에서 뵙겠습니다.";
+  updateRemaining();
 });
 
 // ------------------------------
-// 🔥 전체 삭제 (관리자 전용)
+// 관리자용 초기화 버튼
 // ------------------------------
-resetBtn.addEventListener("click", function() {
-  const pw = prompt("삭제 권한 비밀번호를 입력하세요:");
-  if (pw !== adminPassword) {
-      alert("비밀번호가 틀렸습니다. 삭제 불가!");
-      return;
+resetBtn.addEventListener("click", () => {
+  if (confirm("모든 기록을 초기화하시겠습니까?")) {
+    remove(ref(db, "responses"));
+    Object.keys(courseCounts).forEach(c => courseCounts[c] = 0);
+    set(ref(db, "courseCounts"), courseCounts);
+    tableBody.innerHTML = "";
+    updateRemaining();
   }
-
-  if (!confirm("⚠ 정말로 모든 수강신청 기록을 삭제하시겠습니까?")) return;
-
-  set(ref(db, "responses"), null);
-  set(ref(db, "courseCounts"), null);
-
-  Object.keys(courseCounts).forEach(c => courseCounts[c] = 0);
-
-  tableBody.innerHTML = "";
-  updateRemaining();
-
-  alert("전체 기록이 초기화되었습니다!");
 });
 </script>
 
 </body>
 </html>
-
